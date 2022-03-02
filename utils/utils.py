@@ -57,13 +57,15 @@ def data_scaler(x, standard_deviation=None, interval=None):
     return x 
 
 
-def loss(W, C, X, y):
+def loss(W, C, X, y, normalize=True):
     z = X.matmul(W.t())
     A_cos = z.cos()
     A_sin = z.sin()
     A = torch.cat((A_cos, A_sin), 1)
     y_pred = A.matmul(C.t())
     loss = torch.linalg.norm(y_pred-y)
+    if normalize == True:
+        loss /= len(y)
     return loss
 
 
