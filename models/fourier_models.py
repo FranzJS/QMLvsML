@@ -11,11 +11,12 @@ class Fourier_model(nn.Module):
         self.W = frequencies.t()
         self.input_dim = frequencies.shape[0]
         self.output_dim = output_dim
-        self.linear = nn.Linear(self.input_dim, self.output_dim, bias=False).double()
+        self.linear_sin = nn.Linear(self.input_dim, self.output_dim, bias=False).double()
+        self.linear_cos = nn.Linear(self.input_dim, self.output_dim, bias=False).double()
 
     def forward(self, x):
         z = x.matmul(self.W)
-        sin_z = self.linear(z.sin())
-        cos_z = self.linear(z.cos())
+        sin_z = self.linear_sin(z.sin())
+        cos_z = self.linear_cos(z.cos())
         output = sin_z + cos_z
         return output
