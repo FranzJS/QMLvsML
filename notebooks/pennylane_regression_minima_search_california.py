@@ -33,7 +33,6 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from pennylane import numpy as np
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 #device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -182,18 +181,6 @@ for i in range(3):
     np.save(save_path+"NN_test_loss.npy", np.array(NN_test_loss))
     print("Done!")
 
-# +
-# generate frequencies
-max_freq = 1
-dim = X_scaled[0].shape[0]
-
-W = utils.freq_generator(max_freq, dim)
-
-# compute best approximation
-ba_coeffs = utils.fourier_best_approx(W, X_train, y_train)
-
-print("training_loss: ",utils.loss(W, ba_coeffs, X_train, y_train))
-print("test loss: ",utils.loss(W, ba_coeffs, X_test, y_test))
 # -
 
 save = False
@@ -203,10 +190,6 @@ if save == True:
     #torch.save(model.state_dict(), save_path+"model.pt")
 
 
-epochs = np.arange(1, len(NN_loss)+1, 1)
 
-plt.plot(epochs, NN_loss, label='train')
-plt.plot(epochs, NN_test_loss, label='test')
-plt.legend()
 
 
