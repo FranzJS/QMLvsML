@@ -1,3 +1,17 @@
+#!/usr/bin/env python
+#coding: utf-8
+
+#SBATCH --job-name=example_job                
+#SBATCH --ntasks=1                     # Number of cores
+#SBATCH --nodes=1                      # Ensure that all cores are on one machine
+#SBATCH --time=0-01:00:00              # Runtime in DAYS-HH:MM:SS format
+#SBATCH --mem=4G             
+#SBATCH --output=job1_%j.out           
+#SBATCH --error=job1_%j.err            
+#SBATCH --mail-type=END                
+#SBATCH --mail-user=schreibef98@zedat.fu-berlin.de   
+
+
 # ---
 # jupyter:
 #   jupytext:
