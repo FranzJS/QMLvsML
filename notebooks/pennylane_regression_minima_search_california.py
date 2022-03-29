@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 #coding: utf-8
 
-#SBATCH --job-name=example_job                
-#SBATCH --ntasks=1                     # Number of cores
+#SBATCH --job-name=pennylane_reg_00                
+#SBATCH --ntasks=8                     # Number of cores
 #SBATCH --nodes=1                      # Ensure that all cores are on one machine
-#SBATCH --time=0-01:00:00              # Runtime in DAYS-HH:MM:SS format
-#SBATCH --mem=4G             
+#SBATCH --time=0-14:00:00              # Runtime in DAYS-HH:MM:SS format
+#SBATCH --mem=8G             
 #SBATCH --output=job1_%j.out           
 #SBATCH --error=job1_%j.err            
 #SBATCH --mail-type=END                
@@ -165,11 +165,16 @@ for i in range(3):
     
     NN_loss.append(test(train_dataloader, model, loss_fn))
     NN_test_loss.append(test(test_dataloader, model, loss_fn)) 
-    
+
+    NN_loss.append(ctrain(train_dataloader, model, loss_fn, optimizer, printing=True))
+    NN_test_loss.append(test(test_dataloader, model, loss_fn)) 
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.1) # change optimizer after one LBFGS step
+     
     epochs = 50
     for t in tqdm(range(epochs)):
         # print(f"Epoch {t+1}\n-------------------------------")
-        NN_loss.append(ctrain(train_dataloader, model, loss_fn, optimizer, printing=True))
+        NN_loss.append(train(train_dataloader, model, loss_fn, optimizer, printing=True))
         NN_test_loss.append(test(test_dataloader, model, loss_fn))    
         if t % 10 == 0:
             #pass
