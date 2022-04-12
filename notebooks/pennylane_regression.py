@@ -1,17 +1,15 @@
-# ---
-# jupyter:
-#   jupytext:
-#     formats: ipynb,py:light
-#     text_representation:
-#       extension: .py
-#       format_name: light
-#       format_version: '1.5'
-#       jupytext_version: 1.13.7
-#   kernelspec:
-#     display_name: Python 3
-#     language: python
-#     name: python3
-# ---
+#!/usr/bin/env python
+#coding: utf-8
+
+#SBATCH --job-name=pennylane_reg_00                
+#SBATCH --ntasks=8                     # Number of cores
+#SBATCH --nodes=1                      # Ensure that all cores are on one machine
+#SBATCH --time=0-14:00:00              # Runtime in DAYS-HH:MM:SS format
+#SBATCH --mem=8G             
+#SBATCH --output=job1_%j.out           
+#SBATCH --error=job1_%j.err            
+#SBATCH --mail-type=END                
+#SBATCH --mail-user=schreibef98@zedat.fu-berlin.de   
 
 # +
 import pennylane as qml
@@ -22,7 +20,8 @@ from pennylane import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+#device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = 'cpu'
 print(f'Using {device} device')
 # -
 
@@ -68,7 +67,11 @@ test_dataloader = DataLoader(test_data_list, batch_size=200, shuffle=True)
 # -
 
 n_qubits = n_features
-model = qm.QuantumRegressionModel(n_qubits)
+model = qm.QuantumRegressionModel(n_qubits, n_layers=2, n_trainable_block_layers=1)
+#model.load_state_dict(torch.load("../data/pennylane_regression_minima_search_02/run_0_initial_model.pt"))
+model.load_state_dict(torch.load("../data/pennylane_regression_minima_search_04/run_0_model_epoch_50.pt"))
+model.to(device)
+print(list(model.parameters()))
 
 
 # +
@@ -112,68 +115,59 @@ def test(dataloader, model, loss_fn):
     return test_loss
 
 
-# +
-loss_fn = nn.MSELoss(reduction='mean') # equiv. to torch.linalg.norm(input-target)**2
-optimizer = torch.optim.Adam(model.parameters(), lr=0.8)
-train(train_dataloader, model, loss_fn, optimizer, printing=True)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.2)
-
-epochs = 100
-for t in tqdm(range(epochs)):
-    # print(f"Epoch {t+1}\n-------------------------------")
-    train(train_dataloader, model, loss_fn, optimizer, printing=True)
-    # test(test_dataloader, model, loss_fn)
-    # scheduler.step()
-print("Done!")
-print(train(train_dataloader, model, loss_fn, optimizer, printing=True))
-print(test(test_dataloader, model, loss_fn))
-
-# +
-# generate frequencies
-max_freq = 2
-dim = X_scaled[0].shape[0]
-
-W = utils.freq_generator(max_freq, dim)
-
-# compute best approximation
-ba_coeffs = utils.fourier_best_approx(W, X_train, y_train)
-
-print("training_loss: ",utils.loss(W, ba_coeffs, X_train, y_train))
-print("test loss: ",utils.loss(W, ba_coeffs, X_test, y_test))
 # -
 
-model(X_train[0])
+def ctrain(dataloader, model, loss_fn, optimizer, printing=False):
+    size = len(dataloader.dataset)
+    model.train()
+    for batch, (X, y) in enumerate(dataloader):
+        X, y = X.to(device), y.to(device)
+        def closure():
+            optimizer.zero_grad()
+            output = model(X)
+            loss = loss_fn(output.flatten(), y)
+            loss.backward()
+            return loss
+        
+        optimizer.step(closure)
 
-y_train[0]
+        if batch % 100 == 0:
+            loss = loss_fn(model(X).flatten(), y)
+            loss, current = loss.item(), batch * len(X)
+            if printing == True:
+                print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+                for param_group in optimizer.param_groups:
+                    print("lr: ", param_group['lr'])
+        return loss
 
-utils.loss(W, ba_coeffs, X_train[0:2], y_train[0:2])
 
-epochs = 100
-for t in tqdm(range(epochs)):
-    # print(f"Epoch {t+1}\n-------------------------------")
-    train(train_dataloader, model, loss_fn, optimizer, printing=True)
-    # test(test_dataloader, model, loss_fn)
-    # scheduler.step()
-print("Done!")
-print(train(train_dataloader, model, loss_fn, optimizer, printing=True))
-print(test(test_dataloader, model, loss_fn))
+i = 0
 
-# +
-W = utils.freq_generator(max_freq, dim).to(device)
-model = fm.Fourier_model(W)
+    
+n_qubits = n_features
+model = qm.QuantumRegressionModel(n_qubits, n_layers=2, n_trainable_block_layers=1)
+#model.load_state_dict(torch.load(load_path+"initial_model.pt"))
 model.to(device)
+#print(list(model.parameters()))
 loss_fn = nn.MSELoss(reduction='mean') # equiv. to torch.linalg.norm(input-target)**2
-optimizer = torch.optim.Adam(model.parameters(), lr=0.2)
+optimizer = torch.optim.LBFGS(model.parameters(), lr=0.5)
 
-epochs = 200
+NN_loss = []
+NN_test_loss = []
+
+save_path = "../data/pennylane_regression_01/run_{}.1_".format(i)
+
+epochs = 50
 for t in tqdm(range(epochs)):
     # print(f"Epoch {t+1}\n-------------------------------")
-    train(train_dataloader, model, loss_fn, optimizer, printing=True)
-    # test(test_dataloader, model, loss_fn)
-    # scheduler.step()
-print("Done!")
-print(train(train_dataloader, model, loss_fn, optimizer, printing=True))
-print(test(test_dataloader, model, loss_fn))
-# -
-
-
+    NN_loss.append(ctrain(train_dataloader, model, loss_fn, optimizer, printing=True))
+    NN_test_loss.append(test(test_dataloader, model, loss_fn))    
+    if t % 10 == 0:
+        #pass
+        torch.save(model.state_dict(), save_path+"model_epoch_{}.pt".format(t))
+    if np.isnan(NN_loss[-1]) == True:
+        break
+            
+    np.save(save_path+"NN_loss.npy", np.array(NN_loss))
+    np.save(save_path+"NN_test_loss.npy", np.array(NN_test_loss))
+    print("Done!")
