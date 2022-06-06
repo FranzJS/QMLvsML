@@ -24,7 +24,7 @@ class QuantumModel(nn.Module):
             return [qml.expval(qml.PauliZ(wires=i)) for i in range(self.n_qubits)]
 
 
-        weight_shapes = {"weights" : (self.n_layers, self.n_trainable_block_layers, self.n_qubits, 3)}
+        weight_shapes = {"weights" : (self.n_layers+1, self.n_trainable_block_layers, self.n_qubits, 3)}
         self.qcircuit = qml.qnn.TorchLayer(circuit, weight_shapes)
 
     def forward(self, x):
