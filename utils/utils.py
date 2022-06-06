@@ -63,7 +63,7 @@ def loss(W, C, X, y, normalize=True):
     A_sin = z.sin()
     A = torch.cat((A_cos, A_sin), 1)
     y_pred = A.matmul(C.t())
-    loss = torch.linalg.norm(y_pred-y)
+    loss = torch.linalg.norm(y_pred-y)**2
     if normalize == True:
         loss /= len(y)
     return loss
@@ -91,16 +91,3 @@ def fourier_best_approx(W, x, y):
     return coeffs
 
 
-def int_to_onehot(x):
-    """
-    Expects a tensor of labels in integer encoding, i.e. [0, 1, 0, 1, 2, 0, 0, ...] where the 
-    maximal elements is C-1, C being the number of classes.
-
-    Returns an array in which every integer is substituted by the corresponding one-hot vector.
-    """
-    x = x.long()
-    n = x.shape[0]
-    C = int(x.max()) + 1
-    y = torch.zeros((n, C))
-    y[torch.arange(n), x] = 1
-    return y
