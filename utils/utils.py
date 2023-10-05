@@ -2,11 +2,11 @@ import numpy as np
 from itertools import product
 import torch
 
-def freq_generator(max_freq, dim):
+def freq_generator(max_freq, dim, mode="positive"):
     """
     Generates the frequencies for the multi-dim partial Fourier series. 
     Returns a tensor of the form 
-    ((-max_freq, ..., -max_freq), (-max_freq, ..., -max_freq+1), ..., (max_freq, ..., max:freq))
+    ((-max_freq, ..., -max_freq), (-max_freq, ..., -max_freq+1), ..., (max_freq, ..., max_freq))
     In other words: The function generates the nodes of the n-dim integer lattice Z^n but Z is 
     limited to abs(integers) smaller equal max_freq.
     note. The number of frequencies created is (max_freq + 1)**dim
@@ -15,8 +15,24 @@ def freq_generator(max_freq, dim):
     max_freq (int) : highest integer available for the lattice.
     dim (int) : dimension of the lattice respective the frequencies
     """
-    w = list(np.arange(0, max_freq+1, 1)) # all the integers to build \N^n
-    W = list(product(w, repeat=dim))
+    if mode == "positive":
+        w = list(np.arange(0, max_freq+1, 1)) # all the integers to build \N^n
+        W = list(product(w, repeat=dim))
+    elif mode == "all":
+        w = list(np.arange(-max_freq, max_freq+1, 1)) # all the integers to build \Z^n
+        W = list(product(w, repeat=dim))
+    elif mode == "half":
+        W = []
+        Pos = list(np.arange(1, max_freq+1, 1)) 
+        All = list(np.arange(-max_freq, max_freq+1, 1))
+        for d in range(dim):
+            w = list(np.zeros(d, dtype=np.intc)) # the zero coordinates
+            for j in range(len(Pos)):
+                All_combinations = list(product(All, repeat=dim-d-1))
+                for k in range(len(All_combinations)):
+                    h = w + [Pos[j]]+list(All_combinations[k])
+                    W.append(h)
+        W.append(list(np.zeros(dim, dtype=np.intc)))
     return torch.tensor(W, dtype=torch.float64)
 
 

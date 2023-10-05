@@ -13,7 +13,7 @@
 #     name: python3
 # ---
 
-# We are going to recreate some figures for the "Small Synthetic Dataset" from [insert link to paper].
+# I put togehter an example jupyter notebook to illustrate how the code works. Just for the record, I of course did not run everything on a laptop in a notebook like this.
 
 # +
 import pennylane as qml
@@ -34,12 +34,15 @@ import utils.utils as utils
 import models.fourier_models as fm
 import models.quantum_models as qm
 
+# Pick a data set out of the next three cells.
+
 # +
-# generate our regression task
+# this cell details how the synthetic dataset is generated
+
 from sklearn.datasets import make_regression
 from sklearn.model_selection import train_test_split
 
-n_samples = 200
+n_samples = 500
 n_features = 3
 n_informative = 3
 n_targets = 1
@@ -48,6 +51,26 @@ random_state = 42
 X, y = make_regression(n_samples=n_samples, n_features=n_features, n_informative=n_informative, n_targets=n_targets, noise=noise, random_state=random_state)
 X, y = torch.from_numpy(X), torch.from_numpy(y)
 
+# +
+# generate a random PQC regression problem
+n_samples = 3500
+n_dim = 4
+n_layers = 2
+n_trainable_block_layers = 2
+target_model = qm.QuantumRegressionModel(n_dim, n_layers=n_layers, n_trainable_block_layers=n_trainable_block_layers)
+rng = np.random.default_rng()
+X = torch.from_numpy(rng.random((n_samples, n_dim)))
+
+with torch.no_grad():
+    y = target_model(X).flatten()
+# -
+
+# load california housing dataset
+data = fetch_california_housing()
+X = torch.from_numpy(data.data)
+y = torch.from_numpy(data.target)
+
+# +
 # Scale data to interval [-pi/2, pi/2]
 X_scaled = utils.data_scaler(X, interval=(-torch.pi/2, torch.pi/2))
 
@@ -66,8 +89,8 @@ for i in range(len(X_test)):
     data_point = (X_test[i], y_test[i])
     test_data_list.append(data_point)
     
-train_dataloader = DataLoader(train_data_list, batch_size=200, shuffle=True)
-test_dataloader = DataLoader(test_data_list, batch_size=200, shuffle=True)
+train_dataloader = DataLoader(train_data_list, batch_size=500, shuffle=True)
+test_dataloader = DataLoader(test_data_list, batch_size=500, shuffle=True)
 
 
 # +
@@ -148,23 +171,16 @@ plt.legend()
 max_freq = 2
 dim = X_scaled[0].shape[0]
 
-W = utils.freq_generator(max_freq, dim)
-
-# we can solve the problem directly as it is a linear least squares problem, 
-# giving the bestapproximation w.r.t. the training data
-ba_coeffs = utils.fourier_best_approx(W, X_train, y_train) # vector c in paper
-
-ba_loss = utils.loss(W, ba_coeffs, X_train, y_train).item()
-ba_test_loss = utils.loss(W, ba_coeffs, X_test, y_test).item()
+W = utils.freq_generator(max_freq, dim, mode="half")
 
 # +
-# more in the fashion of ML, we can also train on the data with e.g. LBFGS
+# defining and training the model
 NN_loss = []
 NN_test_loss = []
 W.to(device)
 model = fm.Fourier_model(W)
 model.to(device)
-loss_fn = nn.MSELoss(reduction='mean') # equiv. to torch.linalg.norm(input-target)**2
+loss_fn = nn.MSELoss(reduction='mean') 
 optimizer = torch.optim.LBFGS(model.parameters(), lr=0.5, history_size=50, line_search_fn="strong_wolfe")
 
 epochs = 50
@@ -179,10 +195,11 @@ for t in tqdm(range(epochs)):
 x = np.arange(0, len(NN_loss), 1)
 plt.plot(x, NN_loss, color="C0", label="training loss")
 plt.plot(x, NN_test_loss, color="C1", label="test loss")
-plt.plot(x, np.ones_like(x)*ba_loss, linestyle="dashed", color="C0", label="ba training loss")
-plt.plot(x, np.ones_like(x)*ba_test_loss, linestyle="dashed", color="C1", label="ba test loss")
 plt.xlabel("Epochs")
 plt.ylabel("MSE loss")
+plt.ylim(0,30)
 plt.legend()
+
+
 
 

@@ -23,8 +23,8 @@ class QuantumModel(nn.Module):
 
             return [qml.expval(qml.PauliZ(wires=i)) for i in range(self.n_qubits)]
 
-
-        weight_shapes = {"weights" : (self.n_layers+1, self.n_trainable_block_layers, self.n_qubits, 3)}
+        # n_layers+1 is due to our notation W^{(L)}...W^{(0)}
+        weight_shapes = {"weights" : (self.n_layers+1, self.n_trainable_block_layers, self.n_qubits, 3)} 
         self.qcircuit = qml.qnn.TorchLayer(circuit, weight_shapes)
 
     def forward(self, x):
@@ -40,7 +40,7 @@ class QuantumRegressionModel(QuantumModel):
 
     def forward(self, x):
         x = self.qcircuit(x)
-        x = self.Linear(x)
+        x = self.Linear(x) # note that we do not freeze this linear layer as a default!
         return x
 
 
